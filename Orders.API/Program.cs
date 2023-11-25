@@ -1,9 +1,14 @@
-
+﻿
 using System;
 using Microsoft.Extensions.Resilience;
 using Microsoft.Extensions.Http.Resilience;
 using Polly;
 using System.Net;
+using Products.DataModels;
+using Microsoft.AspNetCore.Http.HttpResults;
+using System.Text.Json.Serialization;
+using System.Text.Json;
+using System.Reflection.Metadata.Ecma335;
 
 namespace Orders.API
 {
@@ -79,18 +84,17 @@ namespace Orders.API
                                     HttpStatusCode.InternalServerError
                         });
                     },
-                    OnOpened = (context) => 
+                    OnOpened = (context) =>
                     {
-                        //TODO: implement fallback
                         Console.WriteLine("circuit opened");
                         return ValueTask.CompletedTask;
                     },
-                    OnClosed = (context) => 
+                    OnClosed = (context) =>
                     {
                         Console.WriteLine("circuit closed");
                         return ValueTask.CompletedTask;
                     },
-                    OnHalfOpened = (context) => 
+                    OnHalfOpened = (context) =>
                     {
                         Console.WriteLine("circuit half opened");
                         return ValueTask.CompletedTask;
@@ -98,7 +102,38 @@ namespace Orders.API
 
                 })
                 // See: https://www.pollydocs.org/strategies/timeout.html
-                .AddTimeout(TimeSpan.FromSeconds(5));
+                .AddTimeout(TimeSpan.FromSeconds(5))
+                .AddFallback(new Polly.Fallback.FallbackStrategyOptions<HttpResponseMessage>()
+                {
+                    //ShouldHandle = new PredicateBuilder<HttpResponseMessage>()
+                    //.Handle<Exception>()
+                    //.HandleResult(r => r is null),
+                    ShouldHandle = new Func<Polly.Fallback.FallbackPredicateArguments<HttpResponseMessage>, ValueTask<bool>>(
+                        (arg) => 
+                        {
+                            bool ok = true;
+                            if (arg.Outcome.Result != null)
+                            {
+                                ok = arg.Outcome.Result.IsSuccessStatusCode;
+                            }
+                            else if (arg.Outcome.Exception != null)
+                            {
+                                ok = false;
+                            }
+
+                            return ValueTask.FromResult(!ok);
+                        }),
+                    FallbackAction = static args =>
+                    {
+                        var products = new Product[]
+                        {
+                            new Product("332", "value from cache", 22, 10)
+                        };
+                        HttpResponseMessage httpResponseMessage = new(HttpStatusCode.Accepted);
+                        httpResponseMessage.Content = new StringContent(JsonSerializer.Serialize(products));
+                        return Outcome.FromResultAsValueTask(httpResponseMessage);
+                    }
+                });;
             });
 
             var app = builder.Build();

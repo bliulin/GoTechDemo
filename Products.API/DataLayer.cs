@@ -6,9 +6,9 @@ namespace Products.API
     {
         private static List<Product> _data = new List<Product>() 
         {
-            new Product("123", "Release It! Mihael Nygaard second edition", 89, 29),
-            new Product("22", "Patterns of Enterprise Application Architecture, M. Fowler", 80, 12),
-            new Product("230", "Clean Code, Robert C. Martin", 35, 50)
+            new Product("123", "Credit de nevoi personale persoane fizice", 89, 29),
+            new Product("22", "Fond de pensii persoane fizice", 80, 12),
+            new Product("230", "Fond de investitii PF", 35, 50)
         };
 
         private static bool _throws;
